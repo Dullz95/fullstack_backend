@@ -8,7 +8,7 @@ import cloudinary
 import cloudinary.uploader
 
 
-
+# Function to create users table
 def init_user_table():
     conn = sqlite3.connect('store.db')
     conn.execute("CREATE TABLE IF NOT EXISTS user(user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -21,7 +21,21 @@ def init_user_table():
     print("users table created successfully")
     conn.close()
 
+# Function to create product table
+def init_product_table():
+    with sqlite3.connect('store.db') as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS user_products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                     "user_id INTEGER NOT NULL,"
+                     "product_name TEXT NOT NULL,"
+                     "description TEXT NOT NULL,"
+                     "image TEXT NOT NULL,"
+                     "price TEXT NOT NULL,"
+                     "FOREIGN KEY (user_id) REFERENCES user (user_id))")
+    print("user's product table created successfully.")
+
+
 init_user_table()
+init_product_table()
 
 
 app = Flask(__name__)
@@ -35,6 +49,14 @@ app.config['MAIL_PASSWORD'] = 'yolo0909!'
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 app.config['CORS_HEADERS'] = ['Content-Type']
+
+@app.route('/', methods=["GET"])
+def welcome():
+    response = {}
+    if request.method == "GET":
+        response["message"] = "Welcome"
+        response["status_code"] = 201
+        return response
 
 @app.route('/user-registration/', methods=["POST"])
 def user_registration():
@@ -61,7 +83,7 @@ def user_registration():
                                (name, last_name, username, physical_address, email, password))
                 conn.commit()
 
-                response["message"] = "success. message sent"
+                response["message"] = "success"
                 response["status_code"] = 201
 
                 return response
