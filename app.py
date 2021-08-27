@@ -1,7 +1,6 @@
-import hmac
+
 import sqlite3
 
-import mail
 from flask import Flask, request, redirect
 from flask_cors import CORS
 from flask_mail import Mail, Message
@@ -13,7 +12,7 @@ import cloudinary.uploader
 class Database(object):
     # function to connect to Database and crete cursor
     def __init__(self):
-        self.conn = sqlite3.connect('store.db')
+        self.conn = sqlite3.connect('backend.db')
         self.cursor = self.conn.cursor()
 
     # function for INSERT AND UPDATE query
@@ -47,7 +46,7 @@ def image_file():
                       api_secret="z7qzuUnTfhyh9ylrxV0UXM_SvPc")
     upload_result = None
     if request.method == 'POST' or request.method =='PUT':
-        image = request.json['product_image']
+        image = request.files['image']
         app.logger.info('%s file_to_upload', image)
         if image:
             upload_result = cloudinary.uploader.upload(image)
@@ -57,32 +56,34 @@ def image_file():
 
 # Function to create users table
 def init_user_table():
-    conn = sqlite3.connect('store.db')
+    conn = sqlite3.connect('backend.db')
     conn.execute("CREATE TABLE IF NOT EXISTS user(user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
                  "name TEXT NOT NULL,"
                  "last_name TEXT NOT NULL,"
                  "username TEXT NOT NULL,"
                  "physical_address TEXT NOT NULL,"
-                 "email TEXT NOT NULL,"
+                 "email TEXT NOT NULL UNIQUE,"
                  "password TEXT NOT NULL)")
     print("users table created successfully")
     conn.close()
 
 # Function to create product table
 def init_product_table():
-    with sqlite3.connect('store.db') as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS user_products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                     "user_id INTEGER NOT NULL,"
+    with sqlite3.connect('backend.db') as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS all_products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                     "email INTEGER NOT NULL,"
                      "product_name TEXT NOT NULL,"
                      "description TEXT NOT NULL,"
                      "image TEXT NOT NULL,"
                      "price TEXT NOT NULL,"
-                     "FOREIGN KEY (user_id) REFERENCES user (user_id))")
-    print("user's product table created successfully.")
+                     "type TEXT NOT NULL,"
+                     "FOREIGN KEY (email) REFERENCES user (email))")
+    print(" all_products table created successfully.")
 
 
 init_user_table()
 init_product_table()
+
 
 
 app = Flask(__name__)
@@ -105,44 +106,45 @@ def welcome():
         response["status_code"] = 201
         return response
 
-@app.route('/user/', methods=["POST", "GET", "PATCH"])
+@app.route('/user/', methods=["POST", "PATCH"])
 def user_registration():
     response = {}
     regex = '^(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}$'
 
     # Login function
     if request.method == "PATCH":
-        username = request.form["username"]
-        password = request.form["password"]
+        email = request.json["email"]
+        password = request.json["password"]
 
-        with sqlite3.connect("store.db") as conn:
+        with sqlite3.connect("backend.db") as conn:
             conn.row_factory = dict_factory
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM user WHERE username=? AND password=?", (username, password,))
+            cursor.execute("SELECT * FROM user WHERE email=? AND password=?", (email, password,))
             user = cursor.fetchone()
             if user != None:
                 response['status_code'] = 200
                 response['data'] = user
                 return response
             else:
-                return "user does not exist"
+                response['status_code'] = 404
+                response['data'] = "User not found"
 
     # registration
     if request.method == "POST":
-        name = request.form['name']
-        last_name = request.form['last_name']
-        username = request.form['username']
-        physical_address = request.form['physical_address']
-        email = request.form['email']
-        password = request.form['password']
+        name = request.json['name']
+        last_name = request.json['last_name']
+        username = request.json['username']
+        physical_address = request.json['physical_address']
+        email = request.json['email']
+        password = request.json['password']
         if (re.search(regex, email)):
-            with sqlite3.connect("store.db") as conn:
+            with sqlite3.connect("backend.db") as conn:
                 conn.row_factory = dict_factory
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM user WHERE email='" + email + "'")
                 user = cursor.fetchone()
                 if user == None:
-                    with sqlite3.connect("store.db") as conn:
+                    with sqlite3.connect("backend.db") as conn:
                         cursor = conn.cursor()
                         cursor.execute("INSERT INTO user("
                                        "name,"
@@ -153,7 +155,7 @@ def user_registration():
                                        "password) VALUES(?, ?, ?, ?, ?, ?)",
                                        (name, last_name, username, physical_address, email, password))
                         conn.commit()
-                        mail=Mail()
+                        mail=Mail(app)
                         msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
                         msg.body = "Welcome to the future"
                         mail.send(msg)
@@ -174,7 +176,7 @@ def get_user(email):
 
     # fetch specific user
     if request.method == "GET":
-        with sqlite3.connect("store.db") as conn:
+        with sqlite3.connect("backend.db") as conn:
             conn.row_factory = dict_factory
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM user WHERE email='" + email + "'")
@@ -188,14 +190,14 @@ def get_user(email):
 
     # update specific profile
     if request.method == "PUT":
-        name = request.form['name']
-        last_name = request.form['last_name']
-        username = request.form['username']
-        physical_address = request.form['physical_address']
-        email = request.form['email']
-        password = request.form['password']
+        name = request.json['name']
+        last_name = request.json['last_name']
+        username = request.json['username']
+        physical_address = request.json['physical_address']
+        email = request.json['email']
+        password = request.json['password']
 
-        query = "UPDATE user SET name=?, last_name=?, username=?, physical_address, email=?, password=?" \
+        query = "UPDATE user SET name=?, last_name=?, username=?, physical_address=?, email=?, password=?" \
                 " WHERE email='" + email + "'"
         values = name, last_name, username, physical_address, email, password
 
@@ -227,6 +229,111 @@ def delete_profile(email):
         response['status_code'] = 200
         response['message'] = "profile deleted successfully."
         return response
+
+
+# products section
+
+@app.route("/product-table/", methods=["POST","GET"])
+
+def add():
+
+    response = {}
+    db = Database()
+
+    if request.method == "POST":
+        email = request.json['email']
+        product_name = request.json['product_name']
+        description = request.json['description']
+        price = request.json['price']
+        type = request.json['type']
+
+        try:
+            query = "INSERT INTO all_products(email, product_name, description, image, price, type) VALUES(?, ?, ?, ?, ?, ?)"
+            values = email, product_name, description, price, image_file(), type
+            db.commiting(query, values)
+            response["status_code"] = 201
+            response['description'] = "item added successfully"
+
+            return response
+
+        except ValueError:
+            return {
+                "error": "failed to insert into DB"
+            }
+
+    # view all products
+    if request.method == "GET":
+        query = "SELECT * FROM  all_products"
+        db.single_commiting(query)
+
+        response['status_code'] = 200
+        response['data'] = db.fetching()
+
+        return response
+
+
+# create end-point to edit existing products/
+@app.route("/updating-products/<int:prod_id>", methods=["PUT","GET"])
+
+def edit(prod_id):
+
+    response = {}
+    db = Database()
+
+    if request.method == "PUT":
+        email = request.json['email']
+        product_name = request.json['product_name']
+        description = request.json['description']
+        price = request.json['price']
+        type = request.json['type']
+        try:
+            testp = int(price)
+
+            query = "UPDATE all_products SET email=?, product_name=?, description=?, image=?, price=?, type=?" \
+                    " WHERE prod_id='" + str(prod_id) + "'"
+            values = email, product_name, description, price, image_file(), type
+
+            db.commiting(query, values)
+
+            response['message'] = 200
+            response['message'] = "Product successfully updated "
+
+            return response
+
+        except ValueError:
+            return "Please enter integer values for price and quantity"
+
+    #     delete product
+    if request.method == "GET":
+        query = "DELETE FROM all_products WHERE product_id=" + str(prod_id)
+        db.single_commiting(query)
+        # error handling to check if the id exists
+        if id == []:
+            return "product does not exist"
+        else:
+            response['status_code'] = 200
+            response['message'] = "item deleted successfully."
+            return response
+
+
+# fetch specific user's products
+@app.route('/products/<email>', methods=["GET"])
+def get_user_products(email):
+    response = {}
+
+    # fetch specific user
+    if request.method == "GET":
+        with sqlite3.connect("backend.db") as conn:
+            conn.row_factory = dict_factory
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM all_products WHERE email='" + email + "'")
+            user = cursor.fetchall()
+            if user != None:
+                response['status_code'] = 200
+                response['data'] = user
+                return response
+            else:
+                return "incorrect email, no products to fetch"
 
 
 if __name__ == '__main__':
