@@ -128,6 +128,7 @@ def user_registration():
             else:
                 response['status_code'] = 404
                 response['data'] = "User not found"
+                return response
 
     # registration
     if request.method == "POST":
