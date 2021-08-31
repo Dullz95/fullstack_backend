@@ -273,6 +273,23 @@ def add():
         return response
 
 
+@app.route("/view-product/<int:prod_id>")
+def view(prod_id):
+    response = {}
+    db = Database()
+
+    if request.method == "GET":
+        query = "SELECT * FROM  all_products WHERE prod_id=" + str(prod_id)
+        db.single_commiting(query)
+
+        response['status_code'] = 200
+        response['data'] = db.fetching()
+
+        return response
+
+
+
+
 # create end-point to edit existing products/
 @app.route("/updating-products/<int:prod_id>", methods=["PUT","GET"])
 
