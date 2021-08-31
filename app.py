@@ -306,7 +306,7 @@ def edit(prod_id):
 
     #     delete product
     if request.method == "GET":
-        query = "DELETE FROM all_products WHERE product_id=" + str(prod_id)
+        query = "DELETE FROM all_products WHERE prod_id=" + str(prod_id)
         db.single_commiting(query)
         # error handling to check if the id exists
         if id == []:
