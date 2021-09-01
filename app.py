@@ -138,39 +138,31 @@ def user_registration():
         physical_address = request.json['physical_address']
         email = request.json['email']
         password = request.json['password']
-        if (re.search(regex, email)):
-            with sqlite3.connect("backend.db") as conn:
-                conn.row_factory = dict_factory
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM user WHERE email='" + email + "'")
-                user = cursor.fetchone()
-                if user == None:
-                    with sqlite3.connect("backend.db") as conn:
-                        cursor = conn.cursor()
-                        cursor.execute("INSERT INTO user("
-                                       "name,"
-                                       "last_name,"
-                                       "username,"
-                                       "physical_address,"
-                                       "email,"
-                                       "password) VALUES(?, ?, ?, ?, ?, ?)",
-                                       (name, last_name, username, physical_address, email, password))
-                        conn.commit()
-                        mail = Mail(app)
-                        msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
-                        msg.body = "Welcome to the future"
-                        mail.send(msg)
-                        response["message"] = "success"
-                        response["status_code"] = 201
 
-                        return response
-                else:
-                    response['status_code'] = 400
-                    response["message"] = "User already exists"
-                    return response
+        if re.search(regex, email):
+            with sqlite3.connect("backend.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO user("
+                               "name,"
+                               "last_name,"
+                               "username,"
+                               "physical_address,"
+                               "email,"
+                               "password) VALUES(?, ?, ?, ?, ?, ?)",
+                               (name, last_name, username, physical_address, email, password))
+                conn.commit()
+                mail = Mail(app)
+                msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
+                msg.body = "Welcome to the future"
+                mail.send(msg)
+                response["message"] = "success"
+                response["status_code"] = 201
+
+                return response
+
         else:
             response['status_code'] = 400
-            response["message"] = "User already exists"
+            response["message"] = "Email did not pass regex"
             return response
 
 # view profile
@@ -250,11 +242,11 @@ def add():
         product_name = request.json['product_name']
         description = request.json['description']
         price = request.json['price']
-        type = request.json['type']
+        prod_type = request.json['type']
 
         try:
             query = "INSERT INTO all_products(email, product_name, description, image, price, type) VALUES(?, ?, ?, ?, ?, ?)"
-            values = email, product_name, description, price, image_file(), type
+            values = email, product_name, description, price, image_file(), prod_type
             db.commiting(query, values)
             response["status_code"] = 201
             response['description'] = "item added successfully"
@@ -307,13 +299,13 @@ def edit(prod_id):
         product_name = request.json['product_name']
         description = request.json['description']
         price = request.json['price']
-        type = request.json['type']
+        prod_type = request.json['type']
         try:
             testp = int(price)
 
             query = "UPDATE all_products SET email=?, product_name=?, description=?, image=?, price=?, type=?" \
                     " WHERE prod_id='" + str(prod_id) + "'"
-            values = email, product_name, description, price, image_file(), type
+            values = email, product_name, description, price, image_file(), prod_type
 
             db.commiting(query, values)
 
