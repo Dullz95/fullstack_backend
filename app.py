@@ -156,7 +156,7 @@ def user_registration():
                                        "password) VALUES(?, ?, ?, ?, ?, ?)",
                                        (name, last_name, username, physical_address, email, password))
                         conn.commit()
-                        mail=Mail(app)
+                        mail = Mail(app)
                         msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
                         msg.body = "Welcome to the future"
                         mail.send(msg)
@@ -165,9 +165,13 @@ def user_registration():
 
                         return response
                 else:
-                    return "user already exists"
+                    response['status_code'] = 400
+                    response["message"] = "User already exists"
+                    return response
         else:
-            return "PLease enter a valid email"
+            response['status_code'] = 400
+            response["message"] = "User already exists"
+            return response
 
 # view profile
 @app.route('/user/<email>', methods=["GET","PUT"])
