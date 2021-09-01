@@ -151,10 +151,10 @@ def user_registration():
                                "password) VALUES(?, ?, ?, ?, ?, ?)",
                                (name, last_name, username, physical_address, email, password))
                 conn.commit()
-                mail = Mail(app)
-                msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
-                msg.body = "Welcome to the future"
-                mail.send(msg)
+                # mail = Mail(app)
+                # msg = Message('Successfully registered', sender='abdullah.isaacs@gmail.com', recipients=[email])
+                # msg.body = "Welcome to the future"
+                # mail.send(msg)
                 response["message"] = "success"
                 response["status_code"] = 201
 
